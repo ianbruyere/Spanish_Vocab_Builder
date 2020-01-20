@@ -1,4 +1,4 @@
-import io, time, json, os, re
+import io, time, json, os, re, string
 import unittest
 import requests
 from pathlib import Path
@@ -86,45 +86,77 @@ def word_trans_parser(spanish_word):
     translation = Translation(spanish_word, english_word)
     return translation
 
-def generate_word_list(text):
+def _clean_text(raw_text):
+    '''returns text stripped of symbols'''
+    return raw_text.translate(str.maketrans('', '', string.punctuation))
+
+def _generate_word_list(text):
     '''
     takes in string, yields every single word. To be called
     after text has been cleaned up right before calling translate on each word
     '''
-    for line in content.split('\n'):
+    for line in text.split('\n'):
         for word in line.split():
-            yield word.lower()
+            yield _clean_text(word.lower())
 
-def get_unique_word_list(file_path):
-    pass
+def generate_chapter_word_lists(chapter_path, word_list_path):
+    '''
+     will loop through the chapter file path and generate a unique
+     word list for each chapter 
+     #TODO now I need to make it so there are no repeats from chapter to chapter, also remove upside 
+     down question marks and dashes
+    '''
+    list_of_files = os.listdir(chapter_path)
+    
+    for file in list_of_files:
+        with open(f'{chapter_path}/{file}') as f:
+            content = f.read()
+            list_of_words = list(set(_generate_word_list(content)))
+            file_name = file.rstrip('.txt')
+            with open(f'{word_list_path}/chapter_{file_name}_word_list.txt', 'w') as f:
+                f.write('\n'.join(list_of_words))
+    
 
-def divide_chapters(text_file, chapter_delimiter_regex, output_dir="chapters"):
+def divide_book_into_chapters(text_file, chapter_delimiter_regex, output_path, title="default"):
     '''
-    divides .txt file into chapters and outputs 
+    divides .txt file into chapters and outputs into given directory
     '''
-    
-    # pathing setup
-    current_dir = os.getcwd()
-    output_path = f'{current_dir}/{output_dir}'
-    
-    
-    # make directory if it doesn't already exist
-    if not os.path.isdir(output_path):
-        os.mkdir(output_path)
     
     with open(text_file) as f:
         content = f.read()
-        chapters = re.split(r'CAPÍTULO\s\d+\n', content)
+        chapters = re.split(fr'{chapter_delimiter_regex}\s\d+\n', content)
     for number, chapter_text in enumerate(chapters):
         with open(f'{output_path}/{number}.txt', 'w') as f:
             f.write(chapter_text)
-            
+def main():
+    '''
+    where all the functions gather together in harmony
+    '''
 
-def clean_text(raw_text):
-    '''
-    returns text stripped of symbols
-    '''
-    pass
+    #TODO add spanish translation for  each word list 
+    #TODO look up how to make anki flash cards
+    #TODO CLI
+    
+    book_title = 'el_leon_la_bruja_y_el_ropero'
+    chapter_file_name = "chapters" 
+    chapter_word_lists = "chapter_word_lists"
+    
+    # pathing setup
+    current_dir = os.getcwd()
+    book_path = f'{current_dir}/{book_title}'
+    chapter_path = f'{book_path}/{chapter_file_name}'
+    word_list_path = f'{book_path}/{chapter_word_lists}'
+    
+    paths_list = [book_path, chapter_path, word_list_path]
+    
+    # make directorys if they doesn't exist
+    for path in paths_list:
+        if not os.path.isdir(path):
+            os.mkdir(path)
+    
+    divide_book_into_chapters('text.txt', 'CAPÍTULO', chapter_path)
+    
+    generate_chapter_word_lists(chapter_path, word_list_path)
 
 # TODO argparser for different chapter delimiters
 # TODO split by word, making sure each is unique
